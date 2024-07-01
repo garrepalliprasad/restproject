@@ -6,9 +6,11 @@ from .models import Student
 from .serializers import StudentSerializer
 from django.views.decorators.csrf import csrf_exempt
 import io
-@csrf_exempt
-def student(request,id=None):
-    if request.method=='GET':
+from django.views import View
+from django.utils.decorators import method_decorator
+@method_decorator(csrf_exempt,name='dispatch')
+class StudentAPI(View):
+    def get(self,request,*args,id=None,**kwargs):
         if id is None:
             students=Student.objects.all()
             students_serialized=StudentSerializer(students,many=True)
@@ -22,7 +24,7 @@ def student(request,id=None):
                 return HttpResponse(student_json,content_type='application/json',status=200)
             except Student.DoesNotExist:
                 return HttpResponse('Student with given id does not exist',status=400)
-    elif request.method=='POST':
+    def post(self,request,*args,**kwargs):
         student_json=request.body
         student_stream=io.BytesIO(student_json)
         student_parsed=JSONParser().parse(student_stream)
@@ -31,7 +33,7 @@ def student(request,id=None):
             student_serialized.save()
             return HttpResponse(student_json,content_type='application/json',status=201)
         return HttpResponse('Can not create new student',status=400)
-    elif request.method=='PUT':
+    def put(self,request,*args,id=None,**kwargs):
         if id is not None:
             try:
                 student=Student.objects.get(id=id)
@@ -46,7 +48,7 @@ def student(request,id=None):
                 return HttpResponse('Student with given id not exist',status=404)
         else:
             return HttpResponse('<h1>Student id Required to update</h1>',status=400)
-    elif request.method=='DELETE':
+    def delete(self,request,*args,id=None,**kwargs):
         if id is not None:
             try:
                 student=Student.objects.get(id=id)
