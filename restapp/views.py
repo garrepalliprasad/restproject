@@ -1,61 +1,53 @@
 from django.shortcuts import render
-from django.http import HttpResponse
-from rest_framework.renderers import JSONRenderer
-from rest_framework.parsers import JSONParser
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from .models import Student
 from .serializers import StudentSerializer
-from django.views.decorators.csrf import csrf_exempt
-import io
-@csrf_exempt
+from rest_framework import status
+
+@api_view(['GET','POST','PUT','DELETE'])
 def student(request,id=None):
     if request.method=='GET':
         if id is None:
             students=Student.objects.all()
             students_serialized=StudentSerializer(students,many=True)
-            students_json=JSONRenderer().render(students_serialized.data)
-            return HttpResponse(students_json,content_type='application/json',status=200)
+            return Response(students_serialized.data,status=status.HTTP_200_OK)
         else:
             try:
                 student=Student.objects.get(id=id)
                 student_serialized=StudentSerializer(student)
-                student_json=JSONRenderer().render(student_serialized.data)
-                return HttpResponse(student_json,content_type='application/json',status=200)
+                return Response(student_serialized.data,status=status.HTTP_200_OK)
             except Student.DoesNotExist:
-                return HttpResponse('Student with given id does not exist',status=400)
+                return Response('Student with given id does not exist',status=status.HTTP_400_BAD_REQUEST)
     elif request.method=='POST':
-        student_json=request.body
-        student_stream=io.BytesIO(student_json)
-        student_parsed=JSONParser().parse(student_stream)
-        student_serialized=StudentSerializer(data=student_parsed)
-        if student_serialized.is_valid():
-            student_serialized.save()
-            return HttpResponse(student_json,content_type='application/json',status=201)
-        return HttpResponse('Can not create new student',status=400)
+        student_deserialized=StudentSerializer(data=request.data)
+        if student_deserialized.is_valid():
+            student_deserialized.save()
+            return Response(request.data,status=status.HTTP_201_CREATED)
+        return Response('Can not create new student',status=status.HTTP_400_BAD_REQUEST)
     elif request.method=='PUT':
         if id is not None:
             try:
                 student=Student.objects.get(id=id)
-                student_json=request.body
-                student_stream=io.BytesIO(student_json)
-                student_parsed=JSONParser().parse(student_stream)
-                student_serialized=StudentSerializer(student,data=student_parsed)
-                if student_serialized.is_valid():
-                    student_serialized.save()
-                    return HttpResponse(student_json,content_type='application/json',status=200)
+                student_deserialized=StudentSerializer(student,data=request.data)
+                if student_deserialized.is_valid():
+                    student_deserialized.save()
+                    return Response(request.data,status=status.HTTP_200_OK)
+                return Response(student_deserialized.errors,status=status.HTTP_404_NOT_FOUND)
             except Student.DoesNotExist:
-                return HttpResponse('Student with given id not exist',status=404)
+                return Response('Student with given id not exist',status=status.HTTP_404_NOT_FOUND)
         else:
-            return HttpResponse('<h1>Student id Required to update</h1>',status=400)
+            return Response('Student id Required to update',status=status.HTTP_400_BAD_REQUEST)
     elif request.method=='DELETE':
         if id is not None:
             try:
                 student=Student.objects.get(id=id)
                 student.delete()
-                return HttpResponse('Student Deleted',content_type='application/json',status=204)
+                return Response('Student Deleted',status=status.HTTP_204_NO_CONTENT)
             except Student.DoesNotExist:
-                return HttpResponse('Student with given id not exist',status=404)
+                return Response('Student with given id not exist',status=status.HTTP_404_NOT_FOUND)
         else:
-            return HttpResponse('Student id required to delete',status=400)
+            return Response('Student id required to delete',status=status.HTTP_400_BAD_REQUEST)
         
 
 
